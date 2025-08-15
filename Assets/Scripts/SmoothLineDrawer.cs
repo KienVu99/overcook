@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using System;
 
 [RequireComponent(typeof(LineRenderer))]
 public class SmoothLineDrawer : MonoBehaviour
@@ -9,6 +10,10 @@ public class SmoothLineDrawer : MonoBehaviour
 
     private LineRenderer lineRenderer;
     private List<Vector3> points = new List<Vector3>();
+    private List<Vector3> currentSmoothPoints = new List<Vector3>();
+
+    public event Action<List<Vector3>> OnPathCompleted;
+    public IReadOnlyList<Vector3> CurrentSmoothPath => currentSmoothPoints;
 
     void Awake()
     {
@@ -22,6 +27,7 @@ public class SmoothLineDrawer : MonoBehaviour
         if (Input.GetMouseButtonDown(0))
         {
             points.Clear();
+            currentSmoothPoints.Clear();
             lineRenderer.positionCount = 0;
             AddPoint(Camera.main.ScreenToWorldPoint(new Vector3(Input.mousePosition.x, Input.mousePosition.y, 10f)));
         }
@@ -34,6 +40,10 @@ public class SmoothLineDrawer : MonoBehaviour
                 UpdateLine();
             }
         }
+        else if (Input.GetMouseButtonUp(0))
+        {
+            FinalizePath();
+        }
     }
 
     void AddPoint(Vector3 point)
@@ -43,7 +53,27 @@ public class SmoothLineDrawer : MonoBehaviour
 
     void UpdateLine()
     {
-        if (points.Count < 4) return; // Catmull–Rom cần ít nhất 4 điểm
+        // Xử lý cả trường hợp ít điểm để vẫn hiển thị và cung cấp đường đi
+        if (points.Count < 2)
+        {
+            currentSmoothPoints.Clear();
+            currentSmoothPoints.AddRange(points);
+            lineRenderer.positionCount = points.Count;
+            if (points.Count > 0)
+            {
+                lineRenderer.SetPositions(points.ToArray());
+            }
+            return;
+        }
+
+        if (points.Count < 4)
+        {
+            currentSmoothPoints.Clear();
+            currentSmoothPoints.AddRange(points);
+            lineRenderer.positionCount = points.Count;
+            lineRenderer.SetPositions(points.ToArray());
+            return;
+        }
 
         List<Vector3> smoothPoints = new List<Vector3>();
 
@@ -62,8 +92,32 @@ public class SmoothLineDrawer : MonoBehaviour
             }
         }
 
-        lineRenderer.positionCount = smoothPoints.Count;
-        lineRenderer.SetPositions(smoothPoints.ToArray());
+        // Đảm bảo chứa điểm bắt đầu và kết thúc gốc
+        if (smoothPoints.Count > 0)
+        {
+            if (smoothPoints[0] != points[0])
+            {
+                smoothPoints.Insert(0, points[0]);
+            }
+            Vector3 lastOriginal = points[points.Count - 1];
+            if (smoothPoints[smoothPoints.Count - 1] != lastOriginal)
+            {
+                smoothPoints.Add(lastOriginal);
+            }
+        }
+
+        currentSmoothPoints = smoothPoints;
+        lineRenderer.positionCount = currentSmoothPoints.Count;
+        lineRenderer.SetPositions(currentSmoothPoints.ToArray());
+    }
+
+    void FinalizePath()
+    {
+        UpdateLine();
+        if (currentSmoothPoints.Count > 0)
+        {
+            OnPathCompleted?.Invoke(new List<Vector3>(currentSmoothPoints));
+        }
     }
 
     Vector3 CatmullRom(Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p3, float t)
