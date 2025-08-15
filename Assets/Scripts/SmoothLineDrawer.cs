@@ -92,6 +92,20 @@ public class SmoothLineDrawer : MonoBehaviour
             }
         }
 
+        // Đảm bảo chứa điểm bắt đầu và kết thúc gốc
+        if (smoothPoints.Count > 0)
+        {
+            if (smoothPoints[0] != points[0])
+            {
+                smoothPoints.Insert(0, points[0]);
+            }
+            Vector3 lastOriginal = points[points.Count - 1];
+            if (smoothPoints[smoothPoints.Count - 1] != lastOriginal)
+            {
+                smoothPoints.Add(lastOriginal);
+            }
+        }
+
         currentSmoothPoints = smoothPoints;
         lineRenderer.positionCount = currentSmoothPoints.Count;
         lineRenderer.SetPositions(currentSmoothPoints.ToArray());

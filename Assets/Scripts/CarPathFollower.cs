@@ -12,6 +12,10 @@ public class CarPathFollower : MonoBehaviour
     public bool startOnPathComplete = true;
     public bool alignYToCar = true; // Keep car's Y while following
 
+    [Header("Start Behavior")]
+    public bool snapToPathStart = true; // dịch chuyển ngay tới điểm bắt đầu
+    public bool rotateToPathStart = true; // quay đầu về hướng điểm kế tiếp khi bắt đầu
+
     private readonly List<Vector3> pathPoints = new List<Vector3>();
     private int currentIndex = 0;
     private bool isMoving = false;
@@ -101,6 +105,23 @@ public class CarPathFollower : MonoBehaviour
             pathPoints.Add(p);
         }
         currentIndex = 0;
+
+        if (pathPoints.Count > 0)
+        {
+            if (snapToPathStart)
+            {
+                transform.position = pathPoints[0];
+            }
+            if (rotateToPathStart && pathPoints.Count > 1)
+            {
+                Vector3 dir = (pathPoints[1] - pathPoints[0]).normalized;
+                if (dir.sqrMagnitude > 0.0001f)
+                {
+                    transform.rotation = Quaternion.LookRotation(dir, Vector3.up);
+                }
+            }
+        }
+
         isMoving = pathPoints.Count > 0;
     }
 
